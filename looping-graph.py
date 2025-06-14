@@ -13,15 +13,13 @@ def greeting_node(state: AgentState) -> AgentState:
     """Node that adds greeting message to the state"""
     state["name"] = f"Hello {state['name']}, how are you?"
     state["counter"] = 0
+    state["number"] = []
     return state
 
 
 def random_node(state: AgentState) -> AgentState:
     """Node that adds random number to the state"""
-    if "number" not in state:
-        state["number"] = []
-    else:
-        state["number"].append(random.randint(0, 10))
+    state["number"].append(random.randint(0, 10))
     state["counter"] += 1
     return state
 
