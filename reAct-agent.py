@@ -32,10 +32,20 @@ class AgentState(StateGraph):
 
 @tool
 def add(a: int, b: int):
-    """This tool adds two numbers"""
+    """This tool adds two numbers""" #this is necessary for the llm to understand the tool
     return a + b
 
-tools = [add]
+@tool
+def subtract(a: int, b: int):
+    """This tool subtracts two numbers""" #this is necessary for the llm to understand the tool
+    return a - b
+
+@tool
+def multiply(a: int, b: int):
+    """This tool multiplies two numbers""" #this is necessary for the llm to understand the tool
+    return a * b
+
+tools = [add, subtract, multiply]
 model = ChatOpenAI(model="gpt-4o-mini").bind_tools(tools)
 
 def model_call(state: AgentState) -> AgentState:
@@ -85,7 +95,7 @@ def print_stream(stream):
         else:
             message.pretty_print()
 
-inputs = {"messages": [("user", "What is 1 + 1?")]}
+inputs = {"messages": [("user", "Add 40 and 12 then multiply the result by 2")]}
 print_stream(app.stream(inputs, stream_mode="values"))
 
 
