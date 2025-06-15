@@ -76,6 +76,14 @@ def our_agent(state: AgentState) -> AgentState:
     all_messages = [system_prompt] + list(state["messages"]) + [user_message]
 
     response = model.invoke(all_messages)
+
+    print("\nAssistant: ", response.content)
+    if hasattr(response, "tool_calls") and response.tool_calls:
+        print(f"using tools: {[tc.name for tc in response.tool_calls]}")
+
+    return {"messages": list(state["messages"]) + [user_message, response]}
+
+    
     
     
 
