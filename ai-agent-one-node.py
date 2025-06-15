@@ -13,8 +13,7 @@ llm = ChatOpenAI(model="gpt-4o-mini")
 
 def process(state: AgentState) -> AgentState:
     response = llm.invoke(state["messages"])
-    print(f"Assistant: {response}")
-
+    print(f"Assistant: {response.content}")
     return state
 
 graph = StateGraph(AgentState)
