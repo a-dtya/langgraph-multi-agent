@@ -7,8 +7,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-#THIS AGENT PERSIST MEMORY ONLY DURING RUNTIME, WHEN EXITED, MEMORY IS LOST
-
 class AgentState(TypedDict): #agentstate keeps track of information as application runs (state schema)
     messages: List[Union[HumanMessage, AIMessage]] # to store either human or AI messages in state["messages"]
 
@@ -36,9 +34,30 @@ user_input = input("User: ")
 
 while user_input != "exit":
     conversation_history.append(HumanMessage(content=user_input))
+    #if the number of HumanMessages exceeds 5, remove the first HumanMessage
+    if len(conversation_history) > 10:
+        for message in conversation_history:
+            if isinstance(message, HumanMessage):
+                conversation_history.remove(message)
+                break
+            elif isinstance(message, AIMessage):
+                conversation_history.remove(message)
     result = agent.invoke({"messages": conversation_history})
     conversation_history = result["messages"]
     user_input = input("User: ")
+
+#for prototyping, using local save
+with open("logging.txt", "w") as f:
+    f.write("Conversation Starts...\n\n")
+
+    for message in conversation_history:
+        if isinstance(message, HumanMessage):
+            f.write(f"User: {message.content}\n")
+        elif isinstance(message, AIMessage):
+            f.write(f"Assistant: {message.content}\n\n")
+
+    f.write("Conversation Ends...\n\n\n")
+    
 
 
 
