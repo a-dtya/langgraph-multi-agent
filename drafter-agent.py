@@ -83,7 +83,22 @@ def our_agent(state: AgentState) -> AgentState:
 
     return {"messages": list(state["messages"]) + [user_message, response]}
 
-    
+
+def should_continue(state: AgentState):
+    """Determine whether to continue or end the conversation."""
+    messages = state["messages"]
+
+    if not messages:
+        return "continue"
+
+    for message in reversed(messages):
+        if isinstance(message, ToolMessage) and "saved" in message.content.lower() and "document" in message.content.lower():
+            return "end"
+        return "continue"
+
+
+
+
     
     
 
