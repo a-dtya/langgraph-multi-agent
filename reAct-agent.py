@@ -71,11 +71,24 @@ graph.add_edge("tool_node", "our_agent")
 
 app = graph.compile()
 
+# inputs = {"messages": [("user", "What is 1 + 1?")]}
+
+# result = app.invoke(inputs)
+
+# print(result["messages"])
+
+def print_stream(stream):
+    for s in stream:
+        message = s["messages"][-1]
+        if isinstance(message, tuple):
+            print(message)
+        else:
+            message.pretty_print()
+
 inputs = {"messages": [("user", "What is 1 + 1?")]}
+print_stream(app.stream(inputs, stream_mode="values"))
 
-result = app.invoke(inputs)
 
-print(result["messages"])
 
 
 
