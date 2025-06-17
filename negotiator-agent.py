@@ -41,6 +41,7 @@ def update_price(
 
     if len(new_price_list) == len(state["reqItems"]):
         result = {"status": "completed"}
+        print("\nPrice List: ", new_price_list)
         #logic to perform db write
         return Command(update={
             "price": update,  # just the new addition; LangGraph will append
@@ -98,7 +99,7 @@ def get_prices(state: AgentState) -> AgentState:
     response = model.invoke(all_messages)
 
     print("\nAssistant: ", response.content)
-    print("\n Price List: ", state["price"])
+    # print("\n Price List: ", state["price"])
 
     return {"messages": list(state["messages"]) + [user_message, response]}
 
