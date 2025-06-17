@@ -41,6 +41,7 @@ def update_price(
 
     if len(new_price_list) == len(state["reqItems"]):
         result = {"status": "completed"}
+        #logic to perform db write
         return Command(update={
             "price": update,  # just the new addition; LangGraph will append
             "messages": [
@@ -77,13 +78,17 @@ def get_prices(state: AgentState) -> AgentState:
     - Make sure to show the current state of prices after every update
     - make only ONE tool call at a time
     """)
-    
+    # print(f"\nState: {state["messages"]}")
     if not state["messages"]:
         user_input = f"Ask me for prices of all items as specified in {reqItems}"
         user_message = HumanMessage(content=user_input)
 
     else:
-        user_input = input("\nYour response: ")
+        #check if the last message is of type ToolMessage, if so, skip the user input
+        if isinstance(state["messages"][-1], ToolMessage):
+            user_input = ""
+        else:
+            user_input = input("\nYour response: ")
         
         print(f"User: {user_input}")
         user_message = HumanMessage(content=user_input)
@@ -139,7 +144,7 @@ def run_price_capture_agent():
     for step in app.stream(state, stream_mode="values"):
         if "messages" in step:
             print_messages(step["messages"])
-    print(state)
+    # print(state)
     print("\n PRICE CAPTURE ENDED")
 
 if __name__ == "__main__":
