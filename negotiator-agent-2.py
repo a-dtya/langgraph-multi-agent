@@ -33,7 +33,7 @@ def update_current_price(
     """Update the price of an item in the state["currentPriceList"]"""
     if item in [entry["item"] for entry in state["currentPriceList"]] and price > 0:
         for entry in state["currentPriceList"]:
-            if entry["item"] == item:
+            if entry["item"] == item and price < entry["rate"]:
                 entry["rate"] = price
                 break
         return Command(update={
@@ -43,14 +43,27 @@ def update_current_price(
             ]
         }, goto="negotiator")
 
+@tool
+def exit(state: Annotated[AgentState, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+    config: RunnableConfig) -> Command[Literal[END]]:
+    """Exit the conversation"""
+    print("\nConversation ended with final price list: ", state["currentPriceList"])
+    return Command(update={"messages": list(state["messages"])+[ToolMessage(content="Conversation ended", tool_call_id=tool_call_id)]}, goto=END)
+
 def negotiator(state: AgentState) -> AgentState:
     
     system_prompt = SystemMessage(content=f"""
     You are a helpful assistant. You are going to negotiate prices of all items from user.
     The current price list is: {state["currentPriceList"]}
     The target price list is: {state["targetPriceList"]}
-    You are going to ask supplier to reduce prices to target prices.
+    You are going to ask supplier to reduce prices. They don't have to reduce prices to {state["targetPriceList"]}, try lowering the rates from {state["currentPriceList"]}
 
+    IMPORTANT: 
+    1. Don't ask multiple questions like -  \"The price of 30 for potatoes is still above our target price of 28. Can we lower it to meet our target? If not, would you like to end the conversation?\"
+    2. Ask only one question at a time, either confirm the rate or prompt to end conversation
+
+    INSTRUCTIONS:
     - call the update_current_price tool every time you get the price of an item which is lesser than it's rate in {state["currentPriceList"]}
     - Make sure to show the current state of prices after every update
     - make only ONE tool call at a time
@@ -79,3 +92,52 @@ def negotiator(state: AgentState) -> AgentState:
     # print("\n Price List: ", state["price"])
 
     return {"messages": list(state["messages"]) + [user_message, response]}
+
+tools = [update_current_price, exit]
+model = ChatOpenAI(model="gpt-4o-mini").bind_tools(tools)
+
+def should_exit(state: AgentState):
+    """Determine whether to exit or continue the conversation."""
+    if not state["messages"]:
+        return "continue"
+    
+    messages = state["messages"]
+
+    for message in reversed(messages):
+        if isinstance(message, ToolMessage) and "Conversation ended" in message.content:
+            return "exit"
+        return "continue"
+
+graph = StateGraph(AgentState)
+graph.add_node("negotiator", negotiator)
+graph.add_node("tool_node", ToolNode(tools))
+graph.add_edge(START, "negotiator")
+graph.add_edge("negotiator", "tool_node")
+graph.add_conditional_edges("tool_node", should_exit, {
+    "exit": END,
+    "continue": "negotiator"
+})
+
+app = graph.compile()
+
+def print_messages(messages):
+    if not messages:
+        return
+
+    for message in messages[-3:]:
+        if isinstance(message, ToolMessage):
+            print("\n Tool result: ", message.content)
+
+def run_price_reducer_agent():
+    print("\n PRICE REDUCER STARTED")
+    # state = {"messages": [], "reqItems": reqItems, "price": []
+    state: AgentState = {"messages": [], "currentPriceList": currentPriceList, "targetPriceList": targetPriceList}
+    
+    for step in app.stream(state, stream_mode="values"):
+        if "messages" in step:
+            print_messages(step["messages"])
+    # print(state)
+    print("\n PRICE REDUCER ENDED")
+
+if __name__ == "__main__":
+    run_price_reducer_agent()
