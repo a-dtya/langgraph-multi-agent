@@ -23,6 +23,25 @@ class AgentState(TypedDict):
     currentPriceList: List[Dict[str, Union[str, int]]]
     targetPriceList: List[Dict[str, Union[str, int]]]
     
+@tool
+def update_current_price(
+    item: str,
+    price: int,
+    state: Annotated[AgentState, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+    config: RunnableConfig) -> Command[Literal["negotiator"]]:
+    """Update the price of an item in the state["currentPriceList"]"""
+    if item in [entry["item"] for entry in state["currentPriceList"]] and price > 0:
+        for entry in state["currentPriceList"]:
+            if entry["item"] == item:
+                entry["rate"] = price
+                break
+        return Command(update={
+            "currentPriceList": state["currentPriceList"],
+            "messages": [
+                ToolMessage(content=str({"status": "updated", "item": item, "price": price}), tool_call_id=tool_call_id)
+            ]
+        }, goto="negotiator")
 
 def negotiator(state: AgentState) -> AgentState:
     
@@ -35,6 +54,7 @@ def negotiator(state: AgentState) -> AgentState:
     - call the update_current_price tool every time you get the price of an item which is lesser than it's rate in {state["currentPriceList"]}
     - Make sure to show the current state of prices after every update
     - make only ONE tool call at a time
+    - if supplier not interested in reducing price, ask if supplier wants to end the conversation, if yes, then call exit tool
     """)
     # print(f"\nState: {state["messages"]}")
     if not state["messages"]:
