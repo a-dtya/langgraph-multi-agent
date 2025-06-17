@@ -96,6 +96,43 @@ def should_continue(state: AgentState):
             return "end"
         return "continue"
 
+def print_messages(messages):
+    if not messages:
+        return
+
+    for message in messages[-3:]:
+        if isinstance(message, ToolMessage):
+            print("\n Tool result: ", message.content)
+
+graph = StateGraph(AgentState)
+graph.add_node("agent",our_agent)
+graph.add_node("tools",ToolNode(tools))
+graph.add_edge(START,"agent")
+graph.add_edge("agent","tools")
+graph.add_conditional_edges("tools",should_continue,{
+    "continue":"agent",
+    "end":END
+})
+
+app = graph.compile()
+
+def run_document_agent():
+    print("\n DRAFTER STARTED")
+
+    state = {"messages": []}
+    
+    for step in app.stream(state, stream_mode="values"):
+        if "messages" in step:
+            print_messages(step["messages"])
+
+    print("\nDRAFTER ENDED")
+
+
+if __name__ == "__main__":
+    run_document_agent()
+
+
+    
 
 
 
