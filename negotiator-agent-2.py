@@ -9,6 +9,8 @@ from langgraph.graph import StateGraph, START, END #blueprint
 from langgraph.prebuilt import ToolNode, InjectedState
 from langgraph.types import Command
 from langchain_core.runnables import RunnableConfig
+import asyncio
+from aioconsole import ainput
 
 load_dotenv()
 
@@ -51,7 +53,7 @@ def exit(state: Annotated[AgentState, InjectedState],
     print("\nConversation ended with final price list: ", state["currentPriceList"])
     return Command(update={"messages": list(state["messages"])+[ToolMessage(content="Conversation ended", tool_call_id=tool_call_id)]}, goto=END)
 
-def negotiator(state: AgentState) -> AgentState:
+async def negotiator(state: AgentState) -> AgentState:
     
     system_prompt = SystemMessage(content=f"""
     You are a helpful assistant. You are going to negotiate prices of all items from user.
@@ -79,14 +81,14 @@ def negotiator(state: AgentState) -> AgentState:
         if isinstance(state["messages"][-1], ToolMessage):
             user_input = ""
         else:
-            user_input = input("\nYour response: ")
+            user_input = await ainput("\nYour response: ")
         
         print(f"User: {user_input}")
         user_message = HumanMessage(content=user_input)
 
     all_messages = [system_prompt] + list(state["messages"]) + [user_message]
 
-    response = model.invoke(all_messages)
+    response = await model.ainvoke(all_messages)
 
     print("\nAssistant: ", response.content)
     # print("\n Price List: ", state["price"])
@@ -128,16 +130,37 @@ def print_messages(messages):
         if isinstance(message, ToolMessage):
             print("\n Tool result: ", message.content)
 
-def run_price_reducer_agent():
-    print("\n PRICE REDUCER STARTED")
-    # state = {"messages": [], "reqItems": reqItems, "price": []
+# async def run_price_reducer_agent():
+#     print("\n PRICE REDUCER STARTED")
+#     # state = {"messages": [], "reqItems": reqItems, "price": []
+#     state: AgentState = {"messages": [], "currentPriceList": currentPriceList, "targetPriceList": targetPriceList}
+    
+#     async for step in app.astream(state, stream_mode="values"):
+#         if "messages" in step:
+#             print_messages(step["messages"])
+#     # print(state)
+#     print("\n PRICE REDUCER ENDED")
+
+# if __name__ == "__main__":
+#     run_price_reducer_agent()
+
+async def run_func():
     state: AgentState = {"messages": [], "currentPriceList": currentPriceList, "targetPriceList": targetPriceList}
     
-    for step in app.stream(state, stream_mode="values"):
+    async for step in app.astream(state, stream_mode="values"):
         if "messages" in step:
             print_messages(step["messages"])
-    # print(state)
-    print("\n PRICE REDUCER ENDED")
+    
+#create a task using asyncio.create_task to execute run_func and another task that timeout for 20 seconds, after 20 seconds, callback run_func task cancel
+async def main():
+    task = asyncio.create_task(run_func())
+    timeout_task = asyncio.create_task(asyncio.sleep(20))
+    done, pending = await asyncio.wait([task, timeout_task], return_when=asyncio.FIRST_COMPLETED)
+    if timeout_task in done:
+        task.cancel()
+        print("\nTimeout: Negotiation not completed in 20 seconds")
+    else:
+        print("\nNegotiation completed")
 
 if __name__ == "__main__":
-    run_price_reducer_agent()
+    asyncio.run(main())
